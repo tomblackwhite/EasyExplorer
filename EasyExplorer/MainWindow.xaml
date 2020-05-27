@@ -1,0 +1,31 @@
+﻿<Window x:Class="EasyExplorer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:EasyExplorer"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <ListView Margin="5" Name="listProcesses"
+                  ItemsSource="{Binding Source={StaticResource processView}}"
+                  GridViewColumnHeader.Click="ColumnHeaderClickedHandler">
+            <ListView.View>
+                <GridView>
+                    <GridView.Columns>
+                        <GridViewColumn Header="Name"
+                                        DisplayMemberBinding="{Binding Path=Name}"/>
+                        <GridViewColumn Header="pid"
+                                        DisplayMemberBinding="{Binding Path=Id}"/>
+                        <GridViewColumn Header="memory"
+                                        DisplayMemberBinding="{Binding Path=WorkingSet}"/>
+                        <GridViewColumn Header="descriptor"
+                                        DisplayMemberBinding="{Binding Path=ModuleName}"/>
+                        <GridViewColumn Header="location"
+                                        DisplayMemberBinding="{Binding Path=FileName}"/>
+                    </GridView.Columns>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </Grid>
+</Window>

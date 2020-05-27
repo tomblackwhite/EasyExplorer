@@ -1,0 +1,19 @@
+#visual studio temp file
+.vs/
+
+#C++ out
+x64/
+x86/
+
+
+#C# temp files bin files
+bin/
+obj/
+
+#test result
+/TestResults/
+
+
+#vim temp files
+*~
+*.swp
