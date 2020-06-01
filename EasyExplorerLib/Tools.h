@@ -2,6 +2,7 @@
 #include"pch.h"
 namespace EasyExplorerLib {
 #pragma unmanaged
+
 	//Windows error code exception
 #define EESYSTEM_ERROR_CODE(str)\
 	std::system_error(GetLastError(),std::system_category(),str)
@@ -35,17 +36,28 @@ namespace EasyExplorerLib {
 #define EEFUN_NAME_TYPE(fun)\
 	&fun,#fun
 	
-	//alias Function name
 	
-	using EENtQuerySystemInformation = NtQuerySystemInformation;
-	using EENtQueryInformationProcess = NtQueryInformationProcess;
-
+	
+	
 	template<typename Fun>
 	auto GetFunctionAddress(HINSTANCE hin,std::string str)->Fun*
 	{
 		return reinterpret_cast<Fun*>(GetProcAddress(hin, str.c_str()));
 	};
 	
+
+	//DLL and Function address
+	struct DllFunction
+	{
+		//alias Function name
+		using EENtQuerySystemInformation = NtQuerySystemInformation;
+		using EENtQueryInformationProcess = NtQueryInformationProcess;
+		static void init();
+		//DLL
+		inline static DllUniquePtr m_NtDll;
+		inline static EENtQuerySystemInformation* m_NtQuerySystemInformation;
+		inline static EENtQueryInformationProcess* m_NtQueryInformationProcess;
+	};
 
 	
 	/*template GetAllInformation*/
@@ -79,27 +91,53 @@ namespace EasyExplorerLib {
 			std::forward<Args>(args)...,
 			buffer.get(),
 			bufferSize,
-			nullptr);
+			&bufferSize);
 
 		return status;
 	}
+
+	/*
+	set Privilege in acess token 
+	require TOKEN_ADJUST_PRIVILEGES*/
+	void SetPrivilege(
+		HANDLE hToken,
+		std::wstring privilegeName,
+		bool enablePrivilege
+	);
+
+
+	//for EasyLibaryLib 
+	//Get Debug Privilege
+	void SetDebugPrivilege();
+
+	
 
 	//process 
 	class NativeProcess
 	{
 	public:
 		NativeProcess(PSYSTEM_PROCESS_INFORMATION info):m_Information(info)
-		{}
+		{		
+		}
 
-		bool RefreshOwnedHandles();
-
+		//bool RefreshOwnedHandles();
+		bool GetHandleInformation(HANDLE handle);
 		PSYSTEM_PROCESS_INFORMATION m_Information=nullptr;
+		
 
 	private:
-		std::unique_ptr<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX> m_OwnedHandles=nullptr;
-
-		std::unique_ptr<std::byte[]> m_BufferOwnedHandles = nullptr;
+		void GetMemberProcessHandle()
+		{
+			auto tempHandle = OpenProcess(PROCESS_ALL_ACCESS, false,
+				reinterpret_cast<DWORD>(m_Information->UniqueProcessId));
+			if (tempHandle == nullptr)
+				throw EESYSTEM_ERROR_CODE("Get process handle error");
+			m_ProcessHandle.reset(tempHandle);
+		}
+		
+		
 		HandleUniquePtr m_ProcessHandle = nullptr;
+
 	};
 
 	class NativeProcessSet
@@ -107,30 +145,14 @@ namespace EasyExplorerLib {
 	public:
 		NativeProcessSet() 
 		{
-			//load ntdll and NtQuerySystemInformation address
-			HINSTANCE hin = LoadLibraryW(L"Ntdll.dll");
-			if (hin == nullptr)
-				throw EESYSTEM_ERROR_CODE("loadNt error");
-			m_NtDll.reset(hin);
-			m_NtQuerySystemInformation = 
-				GetFunctionAddress<NtQuerySystemInformation>(m_NtDll.get(),"NtQuerySystemInformation");
-			if (m_NtQuerySystemInformation == nullptr)
-				throw EESYSTEM_ERROR_CODE("Get NtQuerySystemInformation address error");
-			m_NtQueryInformationProcess =
-				GetFunctionAddress<EENtQueryInformationProcess>(m_NtDll.get(), "NtQueryInformationProcess");
-
-			if (m_NtQueryInformationProcess == nullptr)
-				throw EESYSTEM_ERROR_CODE("Get NtQueryInformationProcess address error");
-
-
-
 		}
 
 		//Get New processes and refresh m_Processes;
 		bool Refresh();
 
 		//Get process owned handles or refresh
-		bool RefreshOwnedHandles();
+		//all handles in system 
+		void RefreshOwnedHandles();
 		
 
 		const std::vector<std::unique_ptr<NativeProcess>>&
@@ -142,13 +164,11 @@ namespace EasyExplorerLib {
 		std::unique_ptr<std::byte[]> m_Buffer;
 		//pSystemProcess information array in m_Buffer
 		std::vector<std::unique_ptr<NativeProcess>> m_Processes;
-		//owned handle in process
-		std::unique_ptr<std::byte[]> m_OwnedHandles;
+		
 
-		//DLL
-		DllUniquePtr m_NtDll;
-		EENtQuerySystemInformation* m_NtQuerySystemInformation=nullptr;
-		EENtQueryInformationProcess* m_NtQueryInformationProcess = nullptr;
+		//handles in system
+		std::vector<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX> m_OwnedHandles;
+		std::unique_ptr<std::byte[]> m_BufferOwnedHandles = nullptr;
 	};
 
 }

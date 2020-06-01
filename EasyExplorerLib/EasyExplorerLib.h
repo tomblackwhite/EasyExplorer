@@ -7,14 +7,16 @@ namespace EasyExplorerLib {
 	public ref class Process
 	{
 	public:
-		Process() :m_Process(nullptr) {};
+		
+		Process(IntPtr process) :
+			m_Process(reinterpret_cast<NativeProcess*>(process.ToPointer())) {};
 		
 		//Image file
 		property String^ Name
 		{
 			String^ get() {
 				return Marshal::PtrToStringUni(
-					IntPtr(reinterpret_cast<void*>(m_Process->ImageName.Buffer)));
+					IntPtr(reinterpret_cast<void*>(m_Process->m_Information->ImageName.Buffer)));
 			}
 		}
 
@@ -22,22 +24,26 @@ namespace EasyExplorerLib {
 		property Int64 Id
 		{
 			Int64 get() {
-				return IntPtr(m_Process->UniqueProcessId).ToInt64();
+				return IntPtr(m_Process->m_Information->UniqueProcessId).ToInt64();
 			}
 		}
-		//before use have to SetProcess Get Process Information
-		//todo change
-		void SetProcess(PSYSTEM_PROCESS_INFORMATION process)
-		{
-			m_Process = process;
-		}
+		
 	private:
-		PSYSTEM_PROCESS_INFORMATION m_Process;
+		NativeProcess *m_Process;
 	};
 	//owned processdata
 	public ref class ProcessSet
 	{
-		// TODO: 在此处为此类添加方法。
+		
+	private:
+		static ProcessSet()
+		{
+			//GetDebugPrivilege
+			SetDebugPrivilege();
+
+			//GetDll and Function address
+			DllFunction::init();
+		}
 	public:
 		ProcessSet() :m_NativeProcess(new NativeProcessSet) {}
 
@@ -59,8 +65,7 @@ namespace EasyExplorerLib {
 			auto temp = gcnew array<Process^>(processCount);
 			for (int i=0;i<temp->Length;++i)
 			{
-				temp[i] = gcnew Process();
-				temp[i]->SetProcess(m_NativeProcess->GetProcesses().at(i));
+				temp[i]=gcnew Process(IntPtr(m_NativeProcess->GetProcesses().at(i).get()));
 			}
 			return temp;
 		}
