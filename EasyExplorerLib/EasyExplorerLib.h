@@ -2,6 +2,7 @@
 #include"Tools.h"
 using namespace System;
 using namespace System::Runtime::InteropServices;
+using namespace System::Collections::Generic;
 namespace EasyExplorerLib {
 #pragma managed
 	public ref class Process
@@ -31,6 +32,36 @@ namespace EasyExplorerLib {
 	private:
 		NativeProcess *m_Process;
 	};
+	
+	public ref class KernelObject
+	{
+	public:
+		KernelObject(IntPtr kernelObject) :
+			m_HandleTableEntry(reinterpret_cast<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX>(kernelObject.ToPointer())){}
+		
+		property IntPtr HandleValue{
+			IntPtr get(){
+				return IntPtr(static_cast<long long>(m_HandleTableEntry->HandleValue));
+			}
+		}
+
+		property IntPtr ObjectAddress {
+			IntPtr get() {
+				return IntPtr(m_HandleTableEntry->Object);
+			}
+		}
+
+		property IntPtr UniqueProcessId {
+			IntPtr get() {
+				return IntPtr(static_cast<long long>(m_HandleTableEntry->UniqueProcessId));
+			}
+		}
+
+
+	private:
+		PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX m_HandleTableEntry;
+	};
+
 	//owned processdata
 	public ref class ProcessSet
 	{
@@ -58,6 +89,12 @@ namespace EasyExplorerLib {
 		{
 			return m_NativeProcess->Refresh();
 		}
+
+		void RefreshOwnedHandles()
+		{
+			m_NativeProcess->RefreshOwnedHandles();
+		}
+
 		//return process 
 		array<Process^>^ GetProcesses()
 		{
@@ -69,6 +106,17 @@ namespace EasyExplorerLib {
 			}
 			return temp;
 		}
+
+		//return owned handles
+		List<KernelObject^>^ GetAllHandles()
+		{
+			auto tempResult = gcnew List<KernelObject^>;
+			auto tempSource = m_NativeProcess->GetAllHandles();
+			for (std::size_t i = 0; i < tempSource.size(); ++i)
+				tempResult->Add(gcnew KernelObject(IntPtr(tempSource.at(i))));
+			return tempResult;
+		}
+
 	protected:
 		//free unmanagedClass
 		!ProcessSet()

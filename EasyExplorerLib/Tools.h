@@ -70,30 +70,29 @@ namespace EasyExplorerLib {
 		) noexcept
 	{
 		ULONG bufferSize = 0;
-		NTSTATUS status =
-			std::forward<Fun>(fun)(
-				std::forward<Args>(args)...,
-				buffer.get(),
-				0,
-				&bufferSize);
+		NTSTATUS status = 0;
+		do
+		{
 
-		//get length information
-		
+			status =
+				std::forward<Fun>(fun)(
+					std::forward<Args>(args)...,
+					buffer.get(),
+					bufferSize,
+					&bufferSize);
 
-		if (!NT_SUCCESS(status) && status != STATUS_BUFFER_TOO_SMALL && status != STATUS_INFO_LENGTH_MISMATCH)
-			return status;
 
-		buffer.reset(new(std::nothrow) std::byte[bufferSize]);
-		if (buffer == nullptr)
-			return status;
-
-		status = std::forward<Fun>(fun)(
-			std::forward<Args>(args)...,
-			buffer.get(),
-			bufferSize,
-			&bufferSize);
+			if (status == STATUS_BUFFER_TOO_SMALL || status == STATUS_INFO_LENGTH_MISMATCH)
+			{
+				buffer.reset(new std::byte[bufferSize]);
+			}
+			else 
+				break;
+			
+		} while (true);
 
 		return status;
+		
 	}
 
 	/*
@@ -159,6 +158,11 @@ namespace EasyExplorerLib {
 			GetProcesses()const
 		{
 			return m_Processes;
+		}
+		const std::vector<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX>&
+			GetAllHandles() const
+		{
+			return m_OwnedHandles;
 		}
 	private:
 		std::unique_ptr<std::byte[]> m_Buffer;

@@ -126,6 +126,7 @@ namespace EasyExplorerLib {
 		}
 		else
 		{
+			auto errorCode = GetLastError();
 			throw EESYSTEM_ERROR_CODE("adjust Token Privileges error");
 		}
 		
@@ -134,12 +135,19 @@ namespace EasyExplorerLib {
 	void SetDebugPrivilege()
 	{
 		HANDLE processHandle = GetCurrentProcess();
-		HANDLE tokenHandle;
+		
+		HANDLE tokenHandle=nullptr;
 		auto result = OpenProcessToken(processHandle, TOKEN_ADJUST_PRIVILEGES, &tokenHandle);
 		if (!result)
 			throw EESYSTEM_ERROR_CODE("openProcessToken error");
 		HandleUniquePtr tokenUPtrHandle(tokenHandle);
-		SetPrivilege(tokenUPtrHandle.get(), SE_DEBUG_NAME, true);
+
+#ifdef DEBUG
+		auto debugHandle = tokenUPtrHandle.get();
+#endif // DEBUG
+
+		
+		SetPrivilege(tokenHandle, SE_DEBUG_NAME, true);
 
 	}
 		
